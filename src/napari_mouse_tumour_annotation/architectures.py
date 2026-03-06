@@ -2,99 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from monai.networks.blocks import Convolution
-from monai.networks.nets import BasicUNet, BasicUNetPlusPlus, UNet
-
-
-def unetpp_default():
-    return BasicUNetPlusPlus(
-        spatial_dims=3, in_channels=1, out_channels=1, deep_supervision=False
-    )
-
-
-def unetpp_dropout():
-    return BasicUNetPlusPlus(
-        spatial_dims=3,
-        in_channels=1,
-        out_channels=1,
-        deep_supervision=False,
-        dropout=0.1,
-    )
-
-
-def unetpp_half():
-    return BasicUNetPlusPlus(
-        spatial_dims=3,
-        in_channels=1,
-        out_channels=1,
-        features=(16, 16, 32, 64, 128, 16),
-        dropout=0.1,
-        deep_supervision=True,
-    )
-
-
-def unet_default():
-    return BasicUNet(spatial_dims=3, in_channels=1, out_channels=1)
-
-
-def unet_half():
-    return BasicUNet(
-        spatial_dims=3,
-        in_channels=1,
-        out_channels=1,
-        features=(16, 16, 32, 64, 128, 16),
-        dropout=0.1,
-    )
-
-
-def unet_half_no_norm():
-    return BasicUNet(
-        spatial_dims=3,
-        in_channels=1,
-        out_channels=1,
-        features=(16, 16, 32, 64, 128, 16),
-        dropout=0.1,
-        norm=None,
-    )
-
-
-# attempts to make shallower UNet with monai UNet implementation, gave bad results
-def unet_S5D2W16_monai():  # similar form as basic_unet_half
-    return UNet(
-        spatial_dims=3,
-        in_channels=1,
-        out_channels=1,
-        channels=(16, 16, 32, 64, 128, 128),
-        strides=(1, 2, 2, 2, 2),
-        num_res_units=2,
-        dropout=0.1,
-        act=("leakyrelu", {"negative_slope": 0.1}),
-    )
-
-
-# def unet_S5D2W16_bis():  # similar form as basic_unet_half
-#     return UNet(
-#         spatial_dims=3,
-#         in_channels=1,
-#         out_channels=1,
-#         channels=(16, 16, 32, 64, 128),
-#         strides=(2, 2, 2, 2),
-#         num_res_units=2,
-#         dropout=0.1,
-#         act=("leakyrelu", {"negative_slope": 0.1}),
-#     )
-
-
-def unet_S4D2W16():  # similar form as basic_unet_half
-    return UNet(
-        spatial_dims=3,
-        in_channels=1,
-        out_channels=1,
-        channels=(16, 16, 32, 64, 64),
-        strides=(1, 2, 2, 2),
-        num_res_units=2,
-        dropout=0.1,
-        act=("leakyrelu", {"negative_slope": 0.1}),
-    )
 
 
 class ConvBlock(nn.Module):
@@ -352,10 +259,10 @@ def unet_S5D2W16(deep_supervision=False):
     )
 
 
-def unet_S4D3W16(deep_supervision=False):
+def unet_S5D2W32(deep_supervision=False):
     return FlexibleUNet(
-        features=(16, 16, 32, 64),
-        n_convs=3,
+        features=(32, 32, 64, 128, 256),
+        n_convs=2,
         act=("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
         norm=("instance", {"affine": True}),
         dropout=0.1,

@@ -23,7 +23,8 @@ from .utils import (
     extract_tumor_window,
     full_scan_normalize,
     insert_patch,
-    load_model,
+    load_model_hf,
+    scan_hf_repo,
     single_image_prediction,
     up_sample_pred,
 )
@@ -61,8 +62,10 @@ class MouseTumourAnnotationQWidget(QWidget):
         self.infer_gb_layout = QGridLayout()
         self.infer_gb.setLayout(self.infer_gb_layout)
 
-        self.models_dir = models_dir
-        available_models = os.listdir(self.models_dir)
+        # self.models_dir = models_dir
+        # available_models = os.listdir(self.models_dir)
+        available_models = scan_hf_repo()
+
         self.model_cb = QComboBox()
         self.model_cb.addItems(available_models)
         self.model_cb.currentTextChanged.connect(self._on_model_cb_changed)
@@ -160,18 +163,7 @@ class MouseTumourAnnotationQWidget(QWidget):
         self.norm_img = None
 
     def _on_model_cb_changed(self, model_name):
-        self.run_path = os.path.join(self.models_dir, model_name)
-        with open(os.path.join(self.run_path, "config.json")) as f:
-            config = json.load(f)
-
-        architecture = config["model_name"]
-
-        self.model = load_model(
-            architecture,
-            os.path.join(self.run_path, "best_model_weights.pt"),
-            device=self.device,
-            deep_supervision=config["deep_supervision"],
-        )
+        self.model = load_model_hf(model_name, self.device)
 
         self.post_transform = build_post_transform()
 
@@ -332,7 +324,7 @@ class MouseTumourAnnotationQWidget(QWidget):
 
             empty_data = np.zeros(img_layer.data.shape, dtype=np.uint8)
             self.prediction_layer = self.viewer.add_labels(
-                empty_data, name="Prediction", opacity=0.4
+                empty_data, name="Prediction", opacity=1
             )
             self.prediction_layer.contour = 1
             self.prediction_layer.colormap = napari.utils.DirectLabelColormap(

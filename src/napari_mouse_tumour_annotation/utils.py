@@ -1,11 +1,15 @@
 import inspect
+import json
 
 import numpy as np
 import torch
+from huggingface_hub import hf_hub_download, list_repo_files
 from monai.transforms import AsDiscrete, Compose, KeepLargestConnectedComponent
 from skimage.measure import block_reduce
 
 from . import architectures
+
+HF_REPO = "bchesaux/napari-mouse-tumour-annotation"
 
 
 def full_scan_normalize(image, clip_percentile=96):
@@ -33,6 +37,36 @@ def load_model(
     model.to(device)
     model.eval()
 
+    return model
+
+
+def scan_hf_repo():
+    files = list_repo_files(repo_id=HF_REPO)
+    return [f.replace(".pt", "") for f in files if f.endswith(".pt")]
+
+
+def load_model_hf(model_key, device=None):
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    checkpoint_path = hf_hub_download(
+        repo_id=HF_REPO, filename=f"{model_key}.pt"
+    )
+    config_path = hf_hub_download(
+        repo_id=HF_REPO, filename=f"{model_key}.json"
+    )
+
+    with open(config_path) as f:
+        config = json.load(f)
+
+    func = getattr(architectures, config["model_name"])
+    if "deep_supervision" in inspect.signature(func).parameters:
+        model = func(deep_supervision=config["deep_supervision"]).to(device)
+    else:
+        model = func().to(device)
+
+    model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+    model.eval()
     return model
 
 
