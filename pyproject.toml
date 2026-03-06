@@ -33,6 +33,7 @@ dependencies = [
     "magicgui",
     "qtpy",
     "scikit-image",
+    "monai>=1.5.2",
 ]
 
 [project.optional-dependencies]
@@ -47,6 +48,8 @@ dev = [
     "pytest-cov",  # https://pytest-cov.readthedocs.io/en/latest/
     "pytest-qt",  # https://pytest-qt.readthedocs.io/en/latest/
     "napari[qt]",  # test with napari's default Qt bindings
+    "napari-mouse-tumour-annotation",
+    "ruff>=0.15.4",
 ]
 
 [project.entry-points."napari.manifest"]
@@ -129,3 +132,11 @@ exclude = [
     "*_vendor*",
 ]
 fix = true
+
+[tool.uv.workspace]
+members = [
+    ".",
+]
+
+[tool.uv.sources]
+napari-mouse-tumour-annotation = { workspace = true, editable = true }

@@ -9,35 +9,16 @@ contributions:
     - id: napari-mouse-tumour-annotation.make_sample_data
       python_name: napari_mouse_tumour_annotation._sample_data:make_sample_data
       title: Load sample data from Mouse Tumour Annotation
-    - id: napari-mouse-tumour-annotation.make_container_widget
-      python_name: napari_mouse_tumour_annotation:ImageThreshold
-      title: Make threshold Container widget
-    - id: napari-mouse-tumour-annotation.make_magic_widget
-      python_name: napari_mouse_tumour_annotation:threshold_magic_widget
-      title: Make threshold magic widget
-    - id: napari-mouse-tumour-annotation.make_function_widget
-      python_name: napari_mouse_tumour_annotation:threshold_autogenerate_widget
-      title: Make threshold function widget
     - id: napari-mouse-tumour-annotation.make_qwidget
-      python_name: napari_mouse_tumour_annotation:ExampleQWidget
-      title: Make example QWidget
+      python_name: napari_mouse_tumour_annotation:MouseTumourAnnotationQWidget
+      title: Make mouse tumour annotation QWidget
   sample_data:
     - command: napari-mouse-tumour-annotation.make_sample_data
       display_name: Mouse Tumour Annotation
       key: unique_id.1
   widgets:
-    - command: napari-mouse-tumour-annotation.make_container_widget
-      display_name: Container Threshold
-    - command: napari-mouse-tumour-annotation.make_magic_widget
-      display_name: Magic Threshold
-    - command: napari-mouse-tumour-annotation.make_function_widget
-      autogenerate: true
-      display_name: Autogenerate Threshold
     - command: napari-mouse-tumour-annotation.make_qwidget
-      display_name: Example QWidget
+      display_name: Mouse Tumour Annotation
   menus:
     napari/layers/segment:
-      - command: napari-mouse-tumour-annotation.make_container_widget
-      - command: napari-mouse-tumour-annotation.make_magic_widget
-      - command: napari-mouse-tumour-annotation.make_function_widget
       - command: napari-mouse-tumour-annotation.make_qwidget
