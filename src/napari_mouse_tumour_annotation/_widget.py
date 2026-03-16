@@ -1,10 +1,7 @@
-import json
-import os
 from typing import TYPE_CHECKING
 
 import napari
 import numpy as np
-import torch
 from magicgui.widgets import Button, CheckBox, create_widget
 from qtpy.QtWidgets import (
     QComboBox,
