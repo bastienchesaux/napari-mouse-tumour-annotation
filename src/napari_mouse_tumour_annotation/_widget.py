@@ -36,7 +36,7 @@ MODEL_WIN_SIZE = 64
 
 
 class MouseTumourAnnotationQWidget(QWidget):
-    def __init__(self, napari_viewer, models_dir="models"):
+    def __init__(self, napari_viewer):
         super().__init__()
         self.viewer = napari_viewer
 
@@ -62,8 +62,6 @@ class MouseTumourAnnotationQWidget(QWidget):
         self.infer_gb_layout = QGridLayout()
         self.infer_gb.setLayout(self.infer_gb_layout)
 
-        # self.models_dir = models_dir
-        # available_models = os.listdir(self.models_dir)
         available_models = scan_hf_repo()
 
         self.model_cb = QComboBox()
@@ -92,20 +90,25 @@ class MouseTumourAnnotationQWidget(QWidget):
         self.run_bt = Button(label="RUN")
         self.run_bt.clicked.connect(self._on_run_bt)
 
+        self.autorun_checkbox = CheckBox(value=True, text="Auto")
+
         self.infer_gb_layout.addWidget(QLabel("Model"), 0, 0)
         self.infer_gb_layout.addWidget(self.model_cb, 0, 1, 1, 3)
         self.infer_gb_layout.addWidget(QLabel("Image"), 1, 0)
         self.infer_gb_layout.addWidget(self.img_layer_cb.native, 1, 1, 1, 3)
         self.infer_gb_layout.addWidget(QLabel("Window Size"), 2, 0)
         self.infer_gb_layout.addWidget(self.winsize_cb, 2, 1, 1, 3)
-        self.infer_gb_layout.addWidget(self.run_bt.native, 3, 0, 1, 4)
+        self.infer_gb_layout.addWidget(self.run_bt.native, 3, 0, 1, 3)
+        self.infer_gb_layout.addWidget(
+            self.autorun_checkbox.native, 3, 3, 1, 1
+        )
 
         # Merge
-        self.merge_gb = QGroupBox("Merge Results")
+        self.merge_gb = QGroupBox("Add Results")
         self.merge_gb_layout = QGridLayout()
         self.merge_gb.setLayout(self.merge_gb_layout)
 
-        plugin_layer_labels = {"Prediction", "Window Display"}
+        plugin_layer_labels = {"New Prediction", "Window Display"}
         self.label_layer_cb = create_widget(
             annotation=napari.layers.Labels,
             options={
@@ -132,15 +135,10 @@ class MouseTumourAnnotationQWidget(QWidget):
         self.merge_bt = Button(label="ADD")
         self.merge_bt.clicked.connect(self._on_merge_bt)
 
-        # self.merge_overwrite_checkbox = CheckBox(value=False, text="Overwrite")
-
-        self.merge_gb_layout.addWidget(QLabel("Prediction"), 0, 0)
+        self.merge_gb_layout.addWidget(QLabel("Predictions Layer"), 0, 0)
         self.merge_gb_layout.addWidget(self.label_layer_cb.native, 0, 1, 1, 3)
         self.merge_gb_layout.addWidget(QLabel("Target Label"), 1, 0)
         self.merge_gb_layout.addWidget(self.target_sb.native, 1, 1, 1, 3)
-        # self.merge_gb_layout.addWidget(
-        #     self.merge_overwrite_checkbox.native, 1, 3, 1, 2
-        # )
         self.merge_gb_layout.addWidget(self.merge_bt.native, 2, 0, 1, 4)
 
         # Assembly
@@ -207,6 +205,9 @@ class MouseTumourAnnotationQWidget(QWidget):
 
         self.update_window_display(coords, half)
 
+        if self.autorun_checkbox.value:
+            self._on_run_bt()
+
     def _on_run_bt(self):
         if self.norm_img is None:
             return
@@ -221,7 +222,13 @@ class MouseTumourAnnotationQWidget(QWidget):
 
         factor = self.winsize // MODEL_WIN_SIZE
 
-        patch = extract_tumor_window(self.norm_img, self.center_coords, half)
+        if len(self.norm_img.shape) == 4:
+            current_frame = self.viewer.dims.current_step[0]
+            input_img = self.norm_img[current_frame]
+        else:
+            input_img = self.norm_img
+
+        patch = extract_tumor_window(input_img, self.center_coords[-3:], half)
 
         if factor > 1:
             patch = downsize_window(patch, factor)
@@ -278,7 +285,12 @@ class MouseTumourAnnotationQWidget(QWidget):
             self.viewer.layers.remove(self.prediction_layer)
 
     def update_window_display(self, coords, half):
-        z, y, x = coords
+        shape = self.window_display_layer.data.shape
+
+        if len(shape) == 3:
+            z, y, x = coords
+        else:
+            t, z, y, x = coords
 
         if (
             self.window_display_layer is None
@@ -287,12 +299,14 @@ class MouseTumourAnnotationQWidget(QWidget):
             self._on_img_layer_changed(self.img_layer_cb.value)
 
         self.window_display_layer.data[:] = 0
-        shape = self.window_display_layer.data.shape
-        z0, z1 = max(0, z - half), min(shape[0], z + half)
-        y0, y1 = max(0, y - half), min(shape[1], y + half)
-        x0, x1 = max(0, x - half), min(shape[2], x + half)
+        z0, z1 = max(0, z - half), min(shape[-3], z + half)
+        y0, y1 = max(0, y - half), min(shape[-2], y + half)
+        x0, x1 = max(0, x - half), min(shape[-1], x + half)
 
-        self.window_display_layer.data[z0:z1, y0:y1, x0:x1] = 1
+        if len(shape) == 3:
+            self.window_display_layer.data[z0:z1, y0:y1, x0:x1] = 1
+        else:
+            self.window_display_layer.data[t, z0:z1, y0:y1, x0:x1] = 1
         self.window_display_layer.refresh()
 
     def refresh_plugin_display_layers(self):
@@ -324,7 +338,7 @@ class MouseTumourAnnotationQWidget(QWidget):
 
             empty_data = np.zeros(img_layer.data.shape, dtype=np.uint8)
             self.prediction_layer = self.viewer.add_labels(
-                empty_data, name="Prediction", opacity=1
+                empty_data, name="New Prediction", opacity=1
             )
             self.prediction_layer.contour = 1
             self.prediction_layer.colormap = napari.utils.DirectLabelColormap(

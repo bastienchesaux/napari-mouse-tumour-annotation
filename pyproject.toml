@@ -51,6 +51,7 @@ dev = [
     "napari[qt]",  # test with napari's default Qt bindings
     "napari-mouse-tumour-annotation",
     "ruff>=0.15.4",
+    "napari-orthogonal-views>=0.1.0",
 ]
 
 [project.entry-points."napari.manifest"]

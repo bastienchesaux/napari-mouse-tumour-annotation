@@ -4,7 +4,12 @@ import json
 import numpy as np
 import torch
 from huggingface_hub import hf_hub_download, list_repo_files
-from monai.transforms import AsDiscrete, Compose, KeepLargestConnectedComponent
+from monai.transforms import (
+    AsDiscrete,
+    Compose,
+    FillHoles,
+    KeepLargestConnectedComponent,
+)
 from skimage.measure import block_reduce
 
 from . import architectures
@@ -13,10 +18,22 @@ HF_REPO = "bchesaux/napari-mouse-tumour-annotation"
 
 
 def full_scan_normalize(image, clip_percentile=96):
-    ub = np.percentile(image, clip_percentile)
-    lb = image.min()
+    if len(image.shape) == 3:
+        ub = np.percentile(image, clip_percentile)
+        lb = image.min()
 
-    normalized = (image - lb) / (ub - lb)
+        normalized = (image - lb) / (ub - lb)
+
+    else:
+        n_frames = image.shape[0]
+        normalized = np.zeros_like(image, dtype=np.float32)
+
+        for t in range(n_frames):
+            ub = np.percentile(image[t], clip_percentile)
+            lb = image[t].min()
+
+            normalized[t] = (image[t] - lb) / (ub - lb)
+
     normalized = np.clip(normalized, 0, 1)
     return normalized
 
@@ -75,6 +92,7 @@ def build_post_transform():
         [
             AsDiscrete(threshold=0.5),
             KeepLargestConnectedComponent(applied_labels=[1]),
+            FillHoles(applied_labels=[1], connectivity=1),
         ]
     )
 
@@ -128,23 +146,37 @@ def single_image_prediction(model, image, post_trans, device):
 
 
 def insert_patch(patch_pred, coords, shape, half, dtype=np.uint8):
+    if len(coords) != len(shape):
+        raise RuntimeError(
+            "Center coordinates and new prediction layer don't have the same number of dimensions"
+        )
     prediction = np.zeros(shape, dtype)
 
-    z, y, x = coords
+    if len(coords) == 3:
+        z, y, x = coords
+    else:
+        t, z, y, x = coords
 
     z0, z1 = z - half, z + half
     y0, y1 = y - half, y + half
     x0, x1 = x - half, x + half
 
-    cz0, cz1 = np.clip([z0, z1], 0, shape[0])
-    cy0, cy1 = np.clip([y0, y1], 0, shape[1])
-    cx0, cx1 = np.clip([x0, x1], 0, shape[2])
+    cz0, cz1 = np.clip([z0, z1], 0, shape[-3])
+    cy0, cy1 = np.clip([y0, y1], 0, shape[-2])
+    cx0, cx1 = np.clip([x0, x1], 0, shape[-1])
 
-    prediction[cz0:cz1, cy0:cy1, cx0:cx1] = patch_pred[
-        cz0 - z0 : cz1 - z0,
-        cy0 - y0 : cy1 - y0,
-        cx0 - x0 : cx1 - x0,
-    ]
+    if len(coords) == 3:
+        prediction[cz0:cz1, cy0:cy1, cx0:cx1] = patch_pred[
+            cz0 - z0 : cz1 - z0,
+            cy0 - y0 : cy1 - y0,
+            cx0 - x0 : cx1 - x0,
+        ]
+    else:
+        prediction[t, cz0:cz1, cy0:cy1, cx0:cx1] = patch_pred[
+            cz0 - z0 : cz1 - z0,
+            cy0 - y0 : cy1 - y0,
+            cx0 - x0 : cx1 - x0,
+        ]
 
     return prediction
 
