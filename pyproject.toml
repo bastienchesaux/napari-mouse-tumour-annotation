@@ -35,6 +35,7 @@ dependencies = [
     "scikit-image",
     "monai>=1.5.2",
     "huggingface-hub>=1.6.0",
+    "torch==2.8.0",
 ]
 
 [project.optional-dependencies]
